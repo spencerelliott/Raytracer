@@ -6,6 +6,7 @@
 #include "ray.h"
 #include "sphere.h"
 #include "hitable_list.h"
+#include "camera.h"
 
 #define FLOATCOLOR(c) int(255.99 * c)
 #define DRAWPIXEL(r, g, b) std::cout << r << " " << g << " " << b << "\n"
@@ -39,16 +40,25 @@ int main() {
 
 	hitable* world = new hitable_list(list, 2);
 
+	camera cam;
+
 	int w = 200;
 	int h = 100;
+	int samples = 100;
 	std::cout << "P3\n" << w << " " << h << "\n255\n";
 	for (int j = h - 1; j >= 0; j--) {
 		for (int i = 0; i < w; i++) {
-			float u = float(i) / float(w);
-			float v = float(j) / float(h);
-			ray r = ray(origin, lower_left + u * horizontal + v * vertical);
+			vec3 col(0, 0, 0);
 
-			vec3 col = color(r, world);
+			for (int s = 0; s < samples; s++) {
+				float u = float(i + ((float)rand() / (RAND_MAX))) / float(w);
+				float v = float(j + ((float)rand() / (RAND_MAX))) / float(h);
+				ray r = cam.get_ray(u, v);
+
+				col += color(r, world);
+			}
+
+			col /= float(samples);
 
 			int ir = FLOATCOLOR(col.r());
 			int ig = FLOATCOLOR(col.g());
