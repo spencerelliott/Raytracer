@@ -7,14 +7,16 @@
 #include "sphere.h"
 #include "hitable_list.h"
 #include "camera.h"
+#include "random.h"
 
 #define FLOATCOLOR(c) int(255.99 * c)
 #define DRAWPIXEL(r, g, b) std::cout << r << " " << g << " " << b << "\n"
 
 vec3 color(const ray& r, hitable *world) {
 	hit_record rec;
-	if (world->hit(r, 0.0, FLT_MAX, rec)) {
-		return 0.5 * vec3(rec.normal.x() + 1, rec.normal.y() + 1, rec.normal.z() + 1);
+	if (world->hit(r, 0.001, FLT_MAX, rec)) {
+		vec3 target = rec.p + rec.normal + random_in_unit_sphere();
+		return 0.5 * color(ray(rec.p, target - rec.p), world);
 	}
 	else {
 		vec3 unit_direction = make_unit_vector(r.direction());
@@ -42,9 +44,9 @@ int main() {
 
 	camera cam;
 
-	int w = 200;
-	int h = 100;
-	int samples = 100;
+	int w = 640;
+	int h = 320;
+	int samples = 20;
 	std::cout << "P3\n" << w << " " << h << "\n255\n";
 	for (int j = h - 1; j >= 0; j--) {
 		for (int i = 0; i < w; i++) {
@@ -59,6 +61,7 @@ int main() {
 			}
 
 			col /= float(samples);
+			col = vec3(sqrt(col[0]), sqrt(col[1]), sqrt(col[2]));
 
 			int ir = FLOATCOLOR(col.r());
 			int ig = FLOATCOLOR(col.g());
