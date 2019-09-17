@@ -79,7 +79,7 @@ public:
 
 		float ni_over_nt;
 
-		attenuation = vec3(1.0, 1.0, 1.0);
+		attenuation = vec3(0.9, 0.9, 0.9);
 		vec3 refracted;
 
 		float reflect_prob;
@@ -104,7 +104,8 @@ public:
 			reflect_prob = 1.0;
 		}
 
-		if (random_0_to_1() < reflect_prob) {
+		float random = random_0_to_1();
+		if (random < reflect_prob) {
 			scattered = ray(rec.p, reflected);
 		}
 		else {

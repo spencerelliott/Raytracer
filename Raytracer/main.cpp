@@ -45,18 +45,22 @@ int main() {
 
 	hitable* list[4];
 
-	list[0] = new sphere(vec3(0, 0, -1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3)));
+	list[0] = new sphere(vec3(-0.3, 0, -1), 0.5, new lambertian(vec3(0.8, 0.3, 0.3)));
 	list[1] = new sphere(vec3(0, -100.5, -1), 100, new lambertian(vec3(0.8, 0.8, 0.0)));
-	list[2] = new sphere(vec3(1, 0, -1), 0.5, new metal(vec3(0.8, 0.6, 0.2), 0.3));
-	list[3] = new sphere(vec3(-1.2, 0.2, -1), 0.5, new dielectric(0.8));
+	list[2] = new sphere(vec3(1, 0, -1.3), 0.5, new metal(vec3(0.8, 0.6, 0.2), 0.3));
+	list[3] = new sphere(vec3(0.5, 0.8, -1.5), 0.4, new dielectric(2.4));
 
 	hitable* world = new hitable_list(list, 4);
 
-	camera cam;
+	int m = 4;
+	int ms = 4;
 
-	int w = 320;
-	int h = 160;
-	int samples = 30;
+	int w = m * 320;
+	int h = m * 180;
+	int samples = ms * 25;
+
+	camera cam(vec3(0, 0.4, 0.5), vec3(0, 0, -1), vec3(0, 1, 0), 90, float(w) / float(h));
+
 	std::cout << "P3\n" << w << " " << h << "\n255\n";
 	for (int j = h - 1; j >= 0; j--) {
 		for (int i = 0; i < w; i++) {

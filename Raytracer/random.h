@@ -8,7 +8,7 @@ inline double random_double() {
 }
 
 inline double random_0_to_1() {
-	return rand() / RAND_MAX;
+	return double(rand()) / double(RAND_MAX);
 }
 
 vec3 random_in_unit_sphere() {
