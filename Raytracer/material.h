@@ -79,7 +79,8 @@ public:
 
 		float ni_over_nt;
 
-		attenuation = vec3(0.9, 0.9, 0.9);
+		//attenuation = vec3(0.9, 0.9, 0.9);
+		attenuation = vec3(1, 1, 1);
 		vec3 refracted;
 
 		float reflect_prob;
