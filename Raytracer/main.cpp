@@ -15,6 +15,7 @@
 #define DRAWPIXEL(r, g, b) std::cout << r << " " << g << " " << b << "\n"
 
 struct scene_info {
+	int seed;
 	int w;
 	int h;
 	int samples;
@@ -60,11 +61,13 @@ DWORD WINAPI raytrace(LPVOID param) {
 
 	for (int j = h - 1; j >= 0; j--) {
 		for (int i = 0; i < w; i++) {
+			rng_state = scene->seed;
+
 			vec3 col(0, 0, 0);
 
 			for (int s = 0; s < samples; s++) {
-				float u = float(i + ((float)rand() / (RAND_MAX))) / float(w);
-				float v = float(j + ((float)rand() / (RAND_MAX))) / float(h);
+				float u = float(i + random_0_to_1()) / float(w);
+				float v = float(j + random_0_to_1()) / float(h);
 				ray r = cam.get_ray(u, v);
 
 				col += color(r, world, 0);
@@ -76,6 +79,8 @@ DWORD WINAPI raytrace(LPVOID param) {
 			scene->pixels[pixel++] = col.r();
 			scene->pixels[pixel++] = col.g();
 			scene->pixels[pixel++] = col.b();
+
+			scene->seed = rng_state;
 		}
 	}
 
@@ -117,6 +122,7 @@ int main() {
 	scene_info scenes[4];
 
 	for (int i = 0; i < num_threads; i++) {	
+		scenes[i].seed = wang_hash(i);
 		scenes[i].w = w;
 		scenes[i].h = h;
 		scenes[i].samples = samples_per_thread;

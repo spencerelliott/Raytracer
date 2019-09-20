@@ -3,12 +3,38 @@
 #include <cstdlib>
 #include "vec3.h"
 
-inline double random_double() {
-	return rand() / (RAND_MAX + 1.0);
+UINT rng_state;
+
+inline UINT wang_hash(int seed) {
+	seed = (seed ^ 61) ^ (seed >> 16);
+	seed *= 9;
+	seed = seed ^ (seed >> 4);
+	seed * 0x27d4eb2d;
+	seed = seed ^ (seed >> 15);
+
+	return seed;
+}
+
+inline UINT random_uint() {
+	rng_state = 1664525 * rng_state + 1013904223;
+
+	return rng_state;
+}
+
+inline UINT random_xorshift() {
+	rng_state ^= (rng_state << 13);
+	rng_state ^= (rng_state >> 17);
+	rng_state ^= (rng_state << 5);
+
+	return rng_state;
 }
 
 inline double random_0_to_1() {
-	return double(rand()) / double(RAND_MAX);
+	return double(random_xorshift()) / double(UINT_MAX);
+}
+
+inline double random_double() {
+	return (2.0 * random_0_to_1()) - 1.0;
 }
 
 vec3 random_in_unit_sphere() {
