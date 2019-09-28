@@ -53,7 +53,7 @@ vec3 color(const ray& r, hitable *world, int depth) {
 
 HANDLE thread_mutex;
 
-int thread_run_count = 0;
+int thread_run_count = NUM_THREADS;
 bool continue_threads = false;
 
 DWORD WINAPI raytrace(LPVOID param) {
@@ -94,6 +94,8 @@ DWORD WINAPI raytrace(LPVOID param) {
 			}
 		}
 
+		//std::cout << "Thread " << scene->seed << " finished rendering" << std::endl;
+
 		DWORD wait_result = WaitForSingleObject(thread_mutex, INFINITE);
 
 		thread_run_count--;
@@ -109,8 +111,6 @@ DWORD WINAPI raytrace(LPVOID param) {
 }
 
 int main(int argc, char* argv[]) {
-	std::ofstream out("out.ppm");
-
 	vec3 lower_left(-2.0, -1.0, -1.0);
 	vec3 horizontal(4.0, 0.0, 0.0);
 	vec3 vertical(0.0, 2.0, 0.0);
@@ -125,16 +125,14 @@ int main(int argc, char* argv[]) {
 
 	hitable* world = new hitable_list(list, 4);
 
-	int num_threads = NUM_THREADS;
-
-	int m = 2;
+	int m = 1;
 	int ms = 1;
 
 	int w = m * 320;
-	int h = m * 180;
+	int h = m * 160;
 	int samples = ms * 5;
 
-	int samples_per_thread = samples / num_threads;
+	int samples_per_thread = samples / NUM_THREADS;
 
 	camera cam(vec3(0, 0.4, 0.5), vec3(0, 0, -1), vec3(0, 1, 0), 90, float(w) / float(h));
 
@@ -143,12 +141,12 @@ int main(int argc, char* argv[]) {
 		FALSE,             // initially not owned
 		NULL);
 
-	HANDLE* threads = new HANDLE[num_threads];
+	HANDLE* threads = new HANDLE[NUM_THREADS];
 	scene_info scenes[NUM_THREADS];
 
 	long start_time = time(0);
 
-	for (int i = 0; i < num_threads; i++) {	
+	for (int i = 0; i < NUM_THREADS; i++) {	
 		scenes[i].seed = wang_hash(i);
 		scenes[i].w = w;
 		scenes[i].h = h;
@@ -160,88 +158,70 @@ int main(int argc, char* argv[]) {
 		threads[i] = CreateThread(NULL, 0, raytrace, &scenes[i], 0, 0);
 	}
 
-	//WaitForMultipleObjects(num_threads, threads, true, INFINITE);
-	
-	out << "P3\n" << w << " " << h << "\n255\n";
-
 	SDL_Event event;
 	SDL_Renderer* renderer;
 	SDL_Window* window;
+
 	int i;
 
 	SDL_Init(SDL_INIT_VIDEO);
-	SDL_CreateWindowAndRenderer(w, h, 0, &window, &renderer);
+
+	SDL_CreateWindowAndRenderer(w, h, SDL_WINDOW_RESIZABLE, &window, &renderer);
+
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 	SDL_RenderClear(renderer);
 
+	SDL_Texture* texture = SDL_CreateTexture(renderer,
+		SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, w, h);
+
+	UINT32* pixels = new UINT32[w * h]{ 0 };
+
 	while (1) {
-		while (thread_run_count > 0);
+		if (thread_run_count <= 0) {
+			for (int i = 0; i < w * h * 3; i += 3) {
+				float avg_r = 0.0;
+				float avg_g = 0.0;
+				float avg_b = 0.0;
 
-		for (int i = 0; i < w * h * 3; i += 3) {
-			float avg_r = 0.0;
-			float avg_g = 0.0;
-			float avg_b = 0.0;
+				for (int k = 0; k < NUM_THREADS; k++) {
+					float r = (float)scenes[k].pixels[i];
+					float g = (float)scenes[k].pixels[i + 1];
+					float b = (float)scenes[k].pixels[i + 2];
 
-			for (int k = 0; k < num_threads; k++) {
-				float r = (float)scenes[k].pixels[i];
-				float g = (float)scenes[k].pixels[i + 1];
-				float b = (float)scenes[k].pixels[i + 2];
+					avg_r += r;
+					avg_g += g;
+					avg_b += b;
+				}
 
-				avg_r += r;
-				avg_g += g;
-				avg_b += b;
+				int ir = FLOATCOLOR(avg_r / NUM_THREADS);
+				int ig = FLOATCOLOR(avg_g / NUM_THREADS);
+				int ib = FLOATCOLOR(avg_b / NUM_THREADS);
+
+				pixels[i / 3] = (ir & 255) << 24 | (ig & 255) << 16 | (ib & 255) << 8 | 255;
+
 			}
 
-			int ir = FLOATCOLOR(avg_r / num_threads);
-			int ig = FLOATCOLOR(avg_g / num_threads);
-			int ib = FLOATCOLOR(avg_b / num_threads);
+			SDL_UpdateTexture(texture, NULL, pixels, w * sizeof(UINT32));
 
-			//DRAWPIXEL(ir, ig, ib);
-			SDL_SetRenderDrawColor(renderer, ir, ig, ib, 255);
-			SDL_RenderDrawPoint(renderer, (i / 3) % w, (i / 3) / h);
+			SDL_RenderClear(renderer);
+			SDL_RenderCopy(renderer, texture, NULL, NULL);
+
+			SDL_RenderPresent(renderer);
+
+			thread_run_count = NUM_THREADS;
 		}
-
-		SDL_RenderPresent(renderer);
 
 		if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
 			break;
-
-		thread_run_count = num_threads;
 	}
 
-	long end_time = time(0);
-
-	/*for (int j = h - 1; j >= 0; j--) {
-		for (int i = 0; i < w; i++) {
-			vec3 col(0, 0, 0);
-
-			for (int s = 0; s < samples; s++) {
-				float u = float(i + ((float)rand() / (RAND_MAX))) / float(w);
-				float v = float(j + ((float)rand() / (RAND_MAX))) / float(h);
-				ray r = cam.get_ray(u, v);
-
-				col += color(r, world, 0);
-			}
-
-			col /= float(samples);
-			col = vec3(sqrt(col[0]), sqrt(col[1]), sqrt(col[2]));
-
-			int ir = FLOATCOLOR(col.r());
-			int ig = FLOATCOLOR(col.g());
-			int ib = FLOATCOLOR(col.b());
-
-			DRAWPIXEL(ir, ig, ib);
-		}
-	}*/
-
-	std::cout << "Took " << (end_time - start_time) << "ms to render";
+	for (int i = 0; i < NUM_THREADS; i++) {
+		TerminateThread(threads[i], 0);
+	}
 
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
-
-	out.flush();
-	out.close();
 
 	return 0;
 }
