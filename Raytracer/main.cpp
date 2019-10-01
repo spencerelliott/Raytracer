@@ -54,7 +54,14 @@ vec3 color(const ray& r, hitable *world, int depth) {
 HANDLE thread_mutex;
 
 int thread_run_count = NUM_THREADS;
-bool continue_threads = false;
+
+void decrement_thread_count() {
+	DWORD wait_result = WaitForSingleObject(thread_mutex, INFINITE);
+
+	thread_run_count--;
+
+	ReleaseMutex(thread_mutex);
+}
 
 DWORD WINAPI raytrace(LPVOID param) {
 	scene_info* scene = (scene_info*)param;
@@ -64,9 +71,9 @@ DWORD WINAPI raytrace(LPVOID param) {
 	int samples = scene->samples;
 
 	hitable* world = scene->world;
-	camera cam = *scene->cam;
 
 	while (1) {
+		camera cam = *scene->cam;
 		int pixel = 0;
 
 		for (int j = h - 1; j >= 0; j--) {
@@ -94,13 +101,7 @@ DWORD WINAPI raytrace(LPVOID param) {
 			}
 		}
 
-		//std::cout << "Thread " << scene->seed << " finished rendering" << std::endl;
-
-		DWORD wait_result = WaitForSingleObject(thread_mutex, INFINITE);
-
-		thread_run_count--;
-
-		ReleaseMutex(thread_mutex);
+		decrement_thread_count();
 
 		while (thread_run_count < NUM_THREADS) {
 			Sleep(10);
@@ -128,18 +129,15 @@ int main(int argc, char* argv[]) {
 	int m = 1;
 	int ms = 1;
 
-	int w = m * 320;
-	int h = m * 160;
+	int w = m * 160;
+	int h = m * 80;
 	int samples = ms * 5;
 
 	int samples_per_thread = samples / NUM_THREADS;
 
-	camera cam(vec3(0, 0.4, 0.5), vec3(0, 0, -1), vec3(0, 1, 0), 90, float(w) / float(h));
+	camera* cam = new camera(vec3(0, 0.4, 0.5), vec3(0, 0, -1), vec3(0, 1, 0), 90, float(w) / float(h));
 
-	thread_mutex = CreateMutex(
-		NULL,              // default security attributes
-		FALSE,             // initially not owned
-		NULL);
+	thread_mutex = CreateMutex(NULL, FALSE, NULL);
 
 	HANDLE* threads = new HANDLE[NUM_THREADS];
 	scene_info scenes[NUM_THREADS];
@@ -152,7 +150,7 @@ int main(int argc, char* argv[]) {
 		scenes[i].h = h;
 		scenes[i].samples = samples_per_thread;
 		scenes[i].world = world;
-		scenes[i].cam = &cam;
+		scenes[i].cam = cam;
 		scenes[i].pixels = new float[w * h * 3]{ 0.0 };
 
 		threads[i] = CreateThread(NULL, 0, raytrace, &scenes[i], 0, 0);
@@ -162,8 +160,6 @@ int main(int argc, char* argv[]) {
 	SDL_Renderer* renderer;
 	SDL_Window* window;
 
-	int i;
-
 	SDL_Init(SDL_INIT_VIDEO);
 
 	SDL_CreateWindowAndRenderer(w, h, SDL_WINDOW_RESIZABLE, &window, &renderer);
@@ -171,10 +167,12 @@ int main(int argc, char* argv[]) {
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 	SDL_RenderClear(renderer);
 
-	SDL_Texture* texture = SDL_CreateTexture(renderer,
-		SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, w, h);
+	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, w, h);
 
 	UINT32* pixels = new UINT32[w * h]{ 0 };
+	unsigned int row_size = w * sizeof(UINT32);
+
+	int current_spin_count = 0;
 
 	while (1) {
 		if (thread_run_count <= 0) {
@@ -201,7 +199,7 @@ int main(int argc, char* argv[]) {
 
 			}
 
-			SDL_UpdateTexture(texture, NULL, pixels, w * sizeof(UINT32));
+			SDL_UpdateTexture(texture, NULL, pixels, row_size);
 
 			SDL_RenderClear(renderer);
 			SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -209,19 +207,26 @@ int main(int argc, char* argv[]) {
 			SDL_RenderPresent(renderer);
 
 			thread_run_count = NUM_THREADS;
+
+			cam->set_look(vec3(1.0 * sin(current_spin_count), 0.4, 0.5), vec3(0, 0, -1));
+			current_spin_count = ++current_spin_count % 360;
 		}
 
 		if (SDL_PollEvent(&event) && event.type == SDL_QUIT)
 			break;
 	}
 
-	for (int i = 0; i < NUM_THREADS; i++) {
-		TerminateThread(threads[i], 0);
-	}
-
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
+
+	for (int i = 0; i < NUM_THREADS; i++) {
+		TerminateThread(threads[i], 0);
+		delete[] scenes[i].pixels;
+	}
+
+	delete cam;
+	delete[] pixels;
 
 	return 0;
 }

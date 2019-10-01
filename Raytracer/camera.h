@@ -4,10 +4,14 @@
 
 class camera {
 public:
-	camera(vec3 look_from, vec3 look_at, vec3 up, float vfov, float aspect) {
+	camera(vec3 look_from, vec3 look_at, vec3 up, float vfov, float aspect) : up(up), fov(vfov), aspect(aspect) {
+		set_look(look_from, look_at);
+	}
+
+	void set_look(vec3 look_from, vec3 look_at) {
 		vec3 u, v, w;
 
-		float theta = vfov * M_PI / 180;
+		float theta = fov * M_PI / 180;
 		float half_height = tan(theta / 2);
 		float half_width = aspect * half_height;
 
@@ -29,4 +33,9 @@ public:
 	vec3 lower_left;
 	vec3 horizontal;
 	vec3 vertical;
+
+	vec3 up;
+
+	float fov;
+	float aspect;
 };
