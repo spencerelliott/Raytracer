@@ -19,7 +19,7 @@ bool refract(const vec3& v, const vec3& n, float ni_over_nt, vec3& refracted) {
 	vec3 uv = make_unit_vector(v);
 
 	float dt = dot(uv, n);
-	float discrim = 1.0 - ni_over_nt * ni_over_nt * (1 - dt * dt);
+	float discrim = 1.0f - ni_over_nt * ni_over_nt * (1 - dt * dt);
 
 	if (discrim > 0) {
 		refracted = ni_over_nt * (uv - n * dt) - n * sqrt(discrim);
@@ -93,7 +93,7 @@ public:
 		}
 		else {
 			outward_normal = rec.normal;
-			ni_over_nt = 1.0 / ref_idx;
+			ni_over_nt = 1.0f / ref_idx;
 			cosine = -dot(r_in.direction(), rec.normal) / r_in.direction().length();
 		}
 

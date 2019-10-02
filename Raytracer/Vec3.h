@@ -59,7 +59,7 @@ inline std::ostream& operator<<(std::ostream& os, vec3& v)
 }
 
 inline void vec3::make_unit_vector() {
-	float k = 1.0 / length();
+	float k = 1.0f / length();
 	e[0] *= k;
 	e[1] *= k;
 	e[2] *= k;

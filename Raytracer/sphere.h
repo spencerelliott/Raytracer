@@ -1,10 +1,14 @@
 #pragma once
 
+#include <iostream>
+
 #include "hitable.h"
+#include "material.h"
 
 class sphere : public hitable {
 public:
 	sphere() { }
+	~sphere();
 	sphere(vec3 cen, float r, material* mat) : center(cen), radius(r), mat_ptr(mat) { };
 
 	virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const;
@@ -13,6 +17,10 @@ public:
 	float radius;
 	material* mat_ptr;
 };
+
+sphere::~sphere() {
+	delete mat_ptr;
+}
 
 bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& rec) const {
 	vec3 oc = r.origin() - center;
